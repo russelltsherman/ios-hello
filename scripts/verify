@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# Harness gate: the single definition of "done" used by agents, hooks and CI.
+#
+#   scripts/verify               format lint + SwiftLint --strict + build (warnings as errors) + tests
+#   scripts/verify --lint-only   format lint + SwiftLint only (fast; used after edits)
+#
+# Builds/tests every Swift package under App/ and Packages/ on its primary (first-declared) platform:
+# macOS -> platform=macOS, iOS -> iPhone 17 simulator; HARNESS_DESTINATION overrides. Packages without a
+# test target are built only; with one, verify fails unless tests actually ran. An Xcode app is included when
+# HARNESS_APP_SCHEME is set (plus HARNESS_APP_CONTAINER, e.g. "-project App/App.xcodeproj", and
+# HARNESS_APP_PLATFORM=ios|macos).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SWIFTLINT="$ROOT/tools/lint/.build/artifacts/swiftlintplugins/SwiftLintBinary/SwiftLintBinary.artifactbundle/macos/swiftlint"
+LINT_ONLY=false
+[[ "${1:-}" == "--lint-only" ]] && LINT_ONLY=true
+
+failures=0
+step() { printf '\n==> %s\n' "$1"; }
+fail() { printf 'FAILED: %s\n' "$1" >&2; failures=$((failures + 1)); }
+
+source_dirs=()
+for dir in App Packages Sources Tests; do
+    [[ -d "$ROOT/$dir" ]] && source_dirs+=("$ROOT/$dir")
+done
+if [[ ${#source_dirs[@]} -eq 0 ]]; then
+    echo "No App/, Packages/, Sources/ or Tests/ directory found; nothing to verify." >&2
+    exit 1
+fi
+
+step "swift-format lint"
+if ! xcrun swift-format lint --strict --recursive --parallel --configuration "$ROOT/.swift-format" "${source_dirs[@]}"; then
+    fail "swift-format (run: xcrun swift-format format -i --recursive --configuration .swift-format <paths>)"
+fi
+
+step "SwiftLint --strict"
+if [[ ! -x "$SWIFTLINT" ]]; then
+    fail "SwiftLint missing; run: (cd tools/lint && swift package resolve)"
+elif ! (cd "$ROOT" && "$SWIFTLINT" lint --strict --quiet); then
+    fail "SwiftLint"
+fi
+
+if [[ "$LINT_ONLY" == true ]]; then
+    [[ $failures -eq 0 ]] && echo "verify --lint-only: OK"
+    exit $((failures > 0))
+fi
+
+scheme_for() {
+    # Prefer the aggregate "<Name>-Package" scheme; otherwise the first scheme listed.
+    xcodebuild -list -json 2>/dev/null | python3 -I -c '
+import json, sys
+schemes = (json.load(sys.stdin).get("workspace") or {}).get("schemes", [])
+package = [s for s in schemes if s.endswith("-Package")]
+print((package or schemes or [""])[0])'
+}
+
+package_info() {
+    # Prints "<primary platform> <has tests>" for the package in the current directory, e.g. "macos yes".
+    # The primary platform is the first one declared; packages declaring none default to ios.
+    swift package dump-package 2>/dev/null | python3 -I -c '
+import json, sys
+manifest = json.load(sys.stdin)
+platforms = manifest.get("platforms") or [{"platformName": "ios"}]
+has_tests = any(t.get("type") == "test" for t in manifest.get("targets", []))
+print(platforms[0]["platformName"], "yes" if has_tests else "no")'
+}
+
+destination_for() {
+    if [[ -n "${HARNESS_DESTINATION:-}" ]]; then
+        echo "$HARNESS_DESTINATION"
+    elif [[ "$1" == "macos" ]]; then
+        echo "platform=macOS"
+    else
+        echo "platform=iOS Simulator,name=iPhone 17"
+    fi
+}
+
+run_xcodebuild() {
+    # Runs in a subshell (callers cd first), so it reports failure by exit status, not by counter.
+    # Usage: run_xcodebuild <label> <destination> <build|test> <xcodebuild args...>
+    local label="$1" destination="$2" action="$3"; shift 3
+    step "$action (warnings as errors): $label [$destination]"
+    local log
+    log="$(mktemp)"
+    if ! xcodebuild "$action" "$@" -destination "$destination" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+        GCC_TREAT_WARNINGS_AS_ERRORS=YES >"$log" 2>&1; then
+        grep -E "error:|warning:|✘|failed|FAILED" "$log" | sort -u | head -40 >&2
+        printf 'FAILED: %s %s\n' "$action" "$label" >&2
+        return 1
+    fi
+    # A destination that doesn't match the package's platforms can "succeed" with zero tests run.
+    if [[ "$action" == "test" ]] && ! grep -qE "Test run with [1-9][0-9]* tests?|Executed [1-9][0-9]* tests?" "$log"; then
+        printf 'FAILED: %s ran no tests (check the destination matches the package platforms)\n' "$label" >&2
+        return 1
+    fi
+    grep -E "Test run with|Executed [0-9]+ tests?" "$log" | tail -1 || true
+}
+
+while IFS= read -r manifest; do
+    package_dir="$(dirname "$manifest")"
+    name="${package_dir#"$ROOT"/}"
+    platform="" has_tests=""
+    read -r platform has_tests < <(cd "$package_dir" && package_info) || true
+    scheme="$(cd "$package_dir" && scheme_for)"
+    if [[ -z "$scheme" || -z "${platform:-}" ]]; then
+        fail "could not read scheme/platforms for $name"
+        continue
+    fi
+    action="build"
+    [[ "$has_tests" == "yes" ]] && action="test"
+    (cd "$package_dir" && run_xcodebuild "$name" "$(destination_for "$platform")" "$action" -scheme "$scheme" \
+        -derivedDataPath "$ROOT/.build/verify/${name//\//_}") || failures=$((failures + 1))
+done < <(find "$ROOT/App" "$ROOT/Packages" -name Package.swift -not -path '*/.build/*' \
+    -not -path '*/checkouts/*' 2>/dev/null | sort)
+
+if [[ -n "${HARNESS_APP_SCHEME:-}" ]]; then
+    # shellcheck disable=SC2086  # HARNESS_APP_CONTAINER intentionally splits into flag + path
+    (cd "$ROOT" && run_xcodebuild "app" "$(destination_for "${HARNESS_APP_PLATFORM:-ios}")" test \
+        ${HARNESS_APP_CONTAINER:-} -scheme "$HARNESS_APP_SCHEME" -derivedDataPath "$ROOT/.build/verify/app") ||
+        failures=$((failures + 1))
+fi
+
+if [[ $failures -gt 0 ]]; then
+    printf '\nverify: %d step(s) failed\n' "$failures" >&2
+    exit 1
+fi
+printf '\nverify: OK\n'

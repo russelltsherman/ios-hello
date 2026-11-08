@@ -1,0 +1,12 @@
+{
+  "module": "Pricing",
+  "focus": "cyclomatic complexity on rule-heavy business logic",
+  "hidden_tests": 13,
+  "forbidden": {},
+  "required": {},
+  "metrics": {},
+  "bad_expectations": [
+    "lint_by_rule.cyclomatic_complexity",
+    "lint_by_rule.force_unwrapping"
+  ]
+}

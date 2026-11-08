@@ -1,0 +1,15 @@
+{
+  "module": "AppConfig",
+  "focus": "error handling and validation without crashes",
+  "hidden_tests": 6,
+  "forbidden": {
+    "force_try": "try!",
+    "force_cast": "as!",
+    "fatalError": "fatalError\\(|preconditionFailure\\("
+  },
+  "required": {},
+  "metrics": {
+    "typed_throws": "throws\\(",
+    "custom_error_type": "(enum|struct)\\s+\\w+\\s*:\\s*[^{]*\\bError\\b"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "module": "Settings",
+  "focus": "modern state management (Observation vs ObservableObject)",
+  "hidden_tests": 5,
+  "forbidden": {
+    "ObservableObject": "\\bObservableObject\\b",
+    "Published": "@Published",
+    "StateObject": "@StateObject",
+    "ObservedObject": "@ObservedObject",
+    "EnvironmentObject": "@EnvironmentObject"
+  },
+  "required": {
+    "Observable_macro": "@Observable\\b"
+  },
+  "metrics": {},
+  "bad_expectations": [
+    "forbidden.ObservableObject",
+    "forbidden.Published",
+    "required_missing.Observable_macro"
+  ]
+}

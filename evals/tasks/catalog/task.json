@@ -1,0 +1,16 @@
+{
+  "module": "Catalog",
+  "focus": "modern navigation (NavigationStack + value-based destinations)",
+  "hidden_tests": 3,
+  "forbidden": {
+    "NavigationView": "\\bNavigationView\\b",
+    "destination_link": "NavigationLink\\s*\\(\\s*destination:",
+    "isActive_link": "isActive:",
+    "ObservableObject": "\\bObservableObject\\b"
+  },
+  "required": {
+    "NavigationStack": "NavigationStack\\s*\\(\\s*path:",
+    "navigationDestination": "\\.navigationDestination\\s*\\(\\s*for:"
+  },
+  "metrics": {}
+}

@@ -1,0 +1,79 @@
+# Harness SwiftLint config (SwiftLint 0.65.1, pinned in tools/lint/Package.resolved).
+# Gates run `swiftlint lint --strict`, so every warning threshold below is a hard limit.
+
+included:
+  - App
+  - Packages
+  - Sources
+  - Tests
+excluded:
+  - .build
+  - "**/.build"
+  - tools
+  - evals
+
+# Formatting is owned by swift-format (.swift-format). trailing_comma is disabled because
+# swift-format's multiElementCollectionTrailingCommas adds the commas it forbids (verified).
+disabled_rules:
+  - trailing_comma
+
+opt_in_rules:
+  # Safety: crash-prone constructs
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - fatal_error_message
+  - discouraged_optional_boolean
+  # Concurrency
+  - async_without_await
+  - unhandled_throwing_task
+  - unowned_variable_capture
+  # SwiftUI
+  - private_swiftui_state
+  - accessibility_label_for_image
+  - accessibility_trait_for_button
+  # Idiom / performance
+  - first_where
+  - empty_count
+  - contains_over_first_not_nil
+  - sorted_first_last
+  - toggle_bool
+  - legacy_objc_type
+  - explicit_init
+  - redundant_type_annotation
+  - prefer_self_in_static_references
+  - weak_delegate
+  - strict_fileprivate
+  - closure_body_length
+
+# Complexity and size. Defaults verified with `swiftlint rules <name>`:
+# CC 10/20, function body 50/100, type body 250/350, params 5/8, file 400/1000.
+cyclomatic_complexity:
+  warning: 10
+  error: 15
+  ignores_case_statements: false
+function_body_length:
+  warning: 40
+  error: 80
+closure_body_length:
+  warning: 30
+  error: 50
+type_body_length:
+  warning: 250
+  error: 350
+function_parameter_count:
+  warning: 5
+  error: 8
+file_length:
+  warning: 400
+  error: 1000
+nesting:
+  type_level: 2
+  function_level: 2
+identifier_name:
+  min_length:
+    warning: 2
+  excluded: [i, x, y]
+line_length:
+  warning: 120
+  error: 160
+  ignores_comments: true

@@ -1,0 +1,8 @@
+{
+  "description": "Unmodified upstream MIT skills that are fork candidates",
+  "skills": {
+    "swiftui-pro": "twostraws-swiftui/swiftui-pro/skills/swiftui-pro",
+    "swift-concurrency": "avdlee-concurrency/skills/swift-concurrency",
+    "swift-testing-expert": "avdlee-testing/swift-testing-expert"
+  }
+}

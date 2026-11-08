@@ -1,0 +1,22 @@
+{
+  "module": "Auth",
+  "test_host": "macos",
+  "focus": "secure credential storage (Keychain vs UserDefaults/files)",
+  "hidden_tests": 4,
+  "forbidden": {
+    "UserDefaults": "\\bUserDefaults\\b",
+    "AppStorage": "@AppStorage",
+    "file_write": "\\.write\\(to:",
+    "print_or_log_token": "(print|NSLog|os_log|logger\\.\\w+)\\([^)]*token",
+    "accessible_always": "kSecAttrAccessibleAlways\\b",
+    "force_try": "try!"
+  },
+  "required": {
+    "keychain_api": "SecItem(Add|CopyMatching)",
+    "explicit_accessibility": "kSecAttrAccessible"
+  },
+  "metrics": {
+    "handles_duplicate_item": "errSecDuplicateItem|SecItemUpdate",
+    "this_device_only": "ThisDeviceOnly"
+  }
+}

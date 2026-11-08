@@ -1,0 +1,22 @@
+{
+  "module": "Articles",
+  "focus": "Swift 6.2 concurrency under defaultIsolation(MainActor); measures Task/hop style",
+  "hidden_tests": 3,
+  "forbidden": {
+    "DispatchQueue": "\\bDispatchQueue\\b",
+    "completion_handler": "@escaping",
+    "Task_detached": "Task\\.detached",
+    "unchecked_Sendable": "@unchecked\\s+Sendable",
+    "nonisolated_unsafe": "nonisolated\\(unsafe\\)",
+    "ObservableObject": "\\bObservableObject\\b"
+  },
+  "required": {
+    "uses_task_modifier": "\\.task\\s*(\\(|\\{)"
+  },
+  "metrics": {
+    "MainActor_run": "MainActor\\.run",
+    "concurrent_attr": "@concurrent",
+    "unstructured_Task": "\\bTask\\s*(\\(|\\{)",
+    "explicit_MainActor": "@MainActor"
+  }
+}
